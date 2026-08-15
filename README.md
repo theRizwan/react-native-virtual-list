@@ -80,11 +80,13 @@ layout.offsetForAnchor(anchor)    // the anchored item has not moved
 
 ## What is tested
 
-56 tests, no device.
+56 automated tests, plus a manual pass on a physical iOS device.
 
 **43 unit tests** covering the layout and the controller, including differential fuzzing of the tree against a naive O(n) implementation, the anchor holding its screen position across 40 random measurement trials and 30 prepend trials, and a run at a million items checking that offsets stay ordered, `indexAt` inverts `offsetOf`, and the total does not drift from the sum of the heights.
 
 **13 render tests** driving the real component through `react-test-renderer` with the layout events a host would send: that only the visible rows mount, that a hundred thousand rows still mount fewer than fifteen, that measurement corrects positions, that `scrollToIndex` lands on the right row when nothing has been measured, and that prepending does not move the anchored row.
+
+**A manual pass on a physical iOS device**, covering scrolling, prepending and `scrollToIndex`. That is what the automated tests cannot reach: real scroll momentum and native layout commit ordering. Android and web have not had the same treatment.
 
 ## Cost
 
@@ -102,7 +104,9 @@ layout.offsetForAnchor(anchor)    // the anchored item has not moved
 
 **No recycling.** Rows mount and unmount rather than being reused with new props. FlashList's recycling pools are faster for long fast scrolls through uniform rows. This trades that for simpler behaviour and no stale state in reused rows.
 
-**Not tested on a device by the author.** Everything above is verified in Node. The render tests drive real component code with synthetic layout events, which catches virtualization, measurement and positioning bugs, but it cannot catch scroll momentum, keyboard interaction, or anything that depends on native layout commit ordering. Try it on a simulator before shipping it.
+**Only iOS has been run on real hardware.** Scrolling, prepending and `scrollToIndex` behave on a physical iOS device. Android and react-native-web have not been run at all yet.
+
+That second gap is worth calling out rather than burying, because react-native-web is the main reason to reach for this. The web case is argued from the platform not implementing `maintainVisibleContentPosition`, which is verifiable by reading react-native-web, and from tests that run in Node. It has not been confirmed in a browser. If you are here for the web case, treat it as unproven and tell me what you find.
 
 **No columns, no masonry, no sticky headers.** Single column vertical lists only.
 
