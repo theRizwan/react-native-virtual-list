@@ -1,16 +1,17 @@
 {
-  "name": "virtual-list-layout",
+  "name": "react-native-virtual-list",
   "version": "0.1.0",
-  "description": "Positioning engine for virtualized lists with millions of items and heights that are not known until they render",
+  "description": "Virtualized list for React Native and react-native-web that keeps its scroll position when item heights are only known after they render",
   "keywords": [
+    "react-native",
+    "react-native-web",
     "virtual-list",
     "virtualization",
     "windowing",
-    "fenwick-tree",
-    "scroll-anchoring",
-    "infinite-scroll",
     "chat",
-    "layout"
+    "infinite-scroll",
+    "scroll-anchoring",
+    "flatlist"
   ],
   "license": "MIT",
   "type": "module",
@@ -18,16 +19,41 @@
   "exports": {
     ".": "./src/index.js"
   },
-  "files": ["src", "README.md", "LICENSE"],
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
   "sideEffects": false,
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
+  "peerDependencies": {
+    "react": ">=17",
+    "react-native": ">=0.70"
+  },
   "scripts": {
-    "test": "node --test tests/*.test.js"
+    "test": "node --test tests/*.test.js && jest",
+    "test:unit": "node --test tests/*.test.js",
+    "test:render": "jest"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/theRizwan/virtual-list-layout.git"
+    "url": "git+https://github.com/theRizwan/react-native-virtual-list.git"
   },
-  "bugs": { "url": "https://github.com/theRizwan/virtual-list-layout/issues" },
-  "homepage": "https://github.com/theRizwan/virtual-list-layout#readme"
+  "bugs": {
+    "url": "https://github.com/theRizwan/react-native-virtual-list/issues"
+  },
+  "homepage": "https://github.com/theRizwan/react-native-virtual-list#readme",
+  "devDependencies": {
+    "@babel/preset-env": "^8.0.2",
+    "@babel/preset-react": "^8.0.1",
+    "@babel/preset-typescript": "^8.0.1",
+    "babel-jest": "^29.7.0",
+    "jest": "^29.7.0",
+    "metro-react-native-babel-preset": "^0.77.0",
+    "react": "^18.3.1",
+    "react-native": "^0.76.5",
+    "react-test-renderer": "^18.3.1"
+  }
 }

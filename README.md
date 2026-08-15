@@ -1,129 +1,112 @@
-# virtual-list-layout
+# react-native-virtual-list
 
-The positioning engine for a virtualized list, for datasets in the millions, where item heights are not known until they render.
-
-No dependencies. No framework. It does not render anything, it works out where everything is.
-
-## What this is not for
-
-Read this first, because it rules out the most common reason people look for a library like this.
-
-**If you are on React Native and your list jumps when you prepend, you do not need this.** The platform already fixes that, and it fixes it better than any JavaScript layer can. `ScrollView`'s `maintainVisibleContentPosition` records the frame of the first visible child before a mount commit and shifts `contentOffset` by the difference afterwards. It never consults an estimate, so a wrong estimate cannot break it: a bad spacer height displaces the anchor view, and displacing the anchor view is exactly what the native code measures and corrects, in the same commit. It is implemented on iOS old architecture, iOS Fabric and Android since RN 0.72, and the iOS implementation is explicitly aware of `inverted` lists.
-
-The short version is that estimate error changes content height. It does not change visible position. Anything claiming otherwise about React Native prepends, including earlier drafts of this README, is wrong.
-
-FlashList enables `maintainVisibleContentPosition` by default and closed its prepend jump report in v2.3.1. Legend List routes prepends to the same native prop with `maintainVisibleContentPosition={{ data: true }}`. Use those.
-
-## What it is for
-
-What the platform does not fix is the arithmetic on the JavaScript side, because native compensation only applies to items that are actually mounted. Positions for items that have never rendered come from your own layout model, and that model can be wrong in ways that are worse than imprecise.
-
-[Shopify/flash-list#2307](https://github.com/Shopify/flash-list/issues/2307), open and P1, is the sharp example. Unmeasured items are positioned from a rolling average seeded at 200px, so item 250 is placed at 50,000px when it belongs at 75,000px. When the items above it measure, their positions grow, but the items below are still placed from the stale average, so the layout table steps *backwards* at the boundary. A binary search over an array that is no longer sorted does not return a slightly wrong answer, it returns an arbitrary one. The reporter asks for item 250 and gets 333.
-
-That is the class of bug this removes, and it removes it structurally rather than by fixing a case.
-
-**Offsets are prefix sums, not a table.** Positions come from a Fenwick tree over heights rather than a materialized array of offsets. Heights are non negative, so the sequence of offsets is non decreasing by construction. There is no partially rebuilt table that can fall out of order, so the search over it cannot be misled. Measuring an item is `O(log n)` and never triggers a rebuild, which also removes the dense per index layout array that is the practical ceiling on dataset size.
-
-**Position is an anchor, not an offset.** An offset is derived from the heights known when it was read, and those heights change. Storing an item plus how far its top sits above the viewport survives both measurement and insertion. On React Native this mostly duplicates what the platform already guarantees, and it is here for the cases the platform does not cover: react-native-web, which has no native `maintainVisibleContentPosition` at all, and Android before RN 0.72.
-
-It also cannot make an estimate correct. Nothing can. The offset of an item nobody has ever rendered is unknown, and this library guarantees that unknown positions stay *consistent*, not that they are right.
-
-## Install
+A virtualized list for React Native and react-native-web that keeps its scroll position when item heights are only known after they render.
 
 ```sh
-npm install virtual-list-layout
+npm install react-native-virtual-list
 ```
 
-## Use
+```jsx
+import { VirtualList } from 'react-native-virtual-list'
 
-```js
-import { ListController } from 'virtual-list-layout'
-
-const list = new ListController({
-  count: messages.length,
-  estimate: 72,          // or (index) => number
-  viewportHeight: 800,
-  overscan: 3,
-})
-
-// The user scrolled.
-list.onScroll(event.contentOffset.y)
-
-// An item rendered and reported its real height.
-list.measure(index, height)
-
-// Older messages arrived at the top. Nothing moves on screen.
-list.prepend(50)
-
-// What to render this frame.
-const { items, totalHeight, scrollOffset } = list.frame()
-//    items: [{ index, offset, height, measured }, ...]
+<VirtualList
+  data={messages}
+  estimatedItemHeight={72}
+  keyExtractor={(item) => item.id}
+  renderItem={({ item }) => <Message {...item} />}
+  onStartReached={loadOlder}
+/>
 ```
 
-`frame()` gives you the items to mount and where to put them. Rendering is yours.
+## Should you use this
 
-### Lower level
+Probably not, and it is worth being straight about that before you install anything.
 
-`ListLayout` is the geometry on its own, if you are building your own scroll state.
+If you are on React Native and you want the fastest list with the most users behind it, use [FlashList](https://github.com/Shopify/flash-list). It has 1.8 million weekly downloads, a team at Shopify behind it, per type recycling pools, and it enables `maintainVisibleContentPosition` by default. [Legend List](https://github.com/LegendApp/legend-list) is also good and is built with chat in mind.
+
+Neither of those is going to be beaten here, and this does not try to.
+
+**The case for this one is narrow.** Two things:
+
+**react-native-web does not implement `maintainVisibleContentPosition` at all.** Not partially, not with caveats. The string does not appear anywhere in react-native-web 0.21.2. On native, the platform holds your scroll position when you insert content above the viewport, and it does it by measuring real frames rather than trusting any estimate, which is why it cannot be fooled by a bad guess. On web you get none of that, so every list has to hold position itself. This one does, by tracking an item and its offset rather than a scroll position.
+
+**Item positions here cannot go out of order.** Offsets are prefix sums over a Fenwick tree rather than an array of positions that gets partially rebuilt. That rules out a specific failure where a partially corrected position table stops being sorted and the binary search over it returns an item nowhere near the one you asked for. That is not hypothetical, it is [Shopify/flash-list#2307](https://github.com/Shopify/flash-list/issues/2307), where asking for item 250 renders item 333. There is a test in this repo that reproduces that mechanism and shows it cannot happen here.
+
+If you are on native only, and FlashList works for you, use FlashList.
+
+## Props
+
+| Prop | Meaning |
+| --- | --- |
+| `data` | The array |
+| `renderItem` | `({ item, index }) => element` |
+| `keyExtractor` | `(item, index) => string`, worth setting |
+| `estimatedItemHeight` | A starting guess, corrected by measurement. Default 100 |
+| `overscan` | Rows to keep mounted either side of the viewport. Default 3 |
+| `onStartReached` | Fires once when the top is reached, rearms when you scroll away |
+| `onEndReached` | Same at the bottom |
+| `maintainVisiblePosition` | Passes `maintainVisibleContentPosition` to the scroll view. Default true |
+| `ListEmptyComponent` | Rendered when `data` is empty |
+
+### Ref
 
 ```js
-import { ListLayout } from 'virtual-list-layout'
+ref.current.scrollToIndex(4823, { align: 'center', animated: true })
+ref.current.scrollToEnd()
+ref.current.prepend(50)          // older messages arrived at the top
+ref.current.getController()      // the layout underneath, if you need it
+```
+
+`prepend` is explicit rather than inferred from `data` growing, because only you know which end changed, and guessing wrong is what makes a list jump.
+
+## Using the layout on its own
+
+The positioning is independent of React and is exported if you want to build your own list on it.
+
+```js
+import { ListLayout } from 'react-native-virtual-list'
 
 const layout = new ListLayout({ count: 1_000_000, estimate: 72 })
 
 layout.offsetOf(999_999)          // O(log n)
 layout.indexAt(41_530_112)        // O(log n)
 layout.setHeight(4823, 118)       // O(log n)
-layout.totalHeight()
 layout.visibleRange(offset, viewportHeight, overscan)
-layout.offsetForIndex(4823, { align: 'center', viewportHeight })
 
 const anchor = layout.captureAnchor(scrollOffset)
-// ...anything at all happens to heights, and items get prepended...
+// heights change, items get prepended, whatever happens
 layout.offsetForAnchor(anchor)    // the anchored item has not moved
 ```
 
-## What is proven
+## What is tested
 
-The whole library is pure, so the guarantees are tested rather than asserted. 43 tests, no device involved.
+56 tests, no device.
 
-| Property | How it is checked |
-| --- | --- |
-| Prefix sums and searches are correct | Differential fuzzing against a naive O(n) implementation, 2000 random updates |
-| Offsets never step backwards | Measured in every order, including adversarial ones |
-| `indexAt` inverts `offsetOf` | Every index across a list of a million |
-| The Flash List 2307 mechanism cannot occur | The reported mechanism is reproduced, then shown impossible here |
-| The anchored item never moves | 40 random trials, measurements above, below and on the anchor |
-| Prepending never moves the anchor | 30 random trials, including buffer reallocation |
-| Totals do not drift | Sum of a million Float32 heights equals the tree total, exactly |
+**43 unit tests** covering the layout and the controller, including differential fuzzing of the tree against a naive O(n) implementation, the anchor holding its screen position across 40 random measurement trials and 30 prepend trials, and a run at a million items checking that offsets stay ordered, `indexAt` inverts `offsetOf`, and the total does not drift from the sum of the heights.
+
+**13 render tests** driving the real component through `react-test-renderer` with the layout events a host would send: that only the visible rows mount, that a hundred thousand rows still mount fewer than fifteen, that measurement corrects positions, that `scrollToIndex` lands on the right row when nothing has been measured, and that prepending does not move the anchored row.
 
 ## Cost
-
-Measured on an M-series Mac, single thread.
 
 | | 1M items | 5M items |
 | --- | --- | --- |
 | Build | 11 ms | 52 ms |
-| `offsetOf` | 0.19 us | 0.23 us |
-| `indexAt` | 0.42 us | 0.79 us |
 | `visibleRange` | 0.84 us | 1.15 us |
 | `setHeight` | 0.33 us | 0.29 us |
 | Prepend 50 | 0.09 ms | 0.02 ms |
 | Index memory | 12 MB | 58 MB |
 
-A frame budget at 60fps is 16.7 ms. `visibleRange` at five million items uses about 0.007 percent of it.
-
-Memory is 13 bytes per item slot: a Float32 height, a Float64 tree node, and a measured flag. At a million items the index costs 12 MB, which is almost always less than the data being listed.
+13 bytes per item slot. At a million items the index is 12 MB, which is usually less than the data being listed.
 
 ## What it does not do
 
-**It does not render.** There is no component here. It tells you which items belong on screen and where, and you mount them.
+**No recycling.** Rows mount and unmount rather than being reused with new props. FlashList's recycling pools are faster for long fast scrolls through uniform rows. This trades that for simpler behaviour and no stale state in reused rows.
 
-**It does not measure.** Heights come from your renderer through `measure(index, height)`. What it guarantees is that nothing jumps when they arrive.
+**Not tested on a device by the author.** Everything above is verified in Node. The render tests drive real component code with synthetic layout events, which catches virtualization, measurement and positioning bugs, but it cannot catch scroll momentum, keyboard interaction, or anything that depends on native layout commit ordering. Try it on a simulator before shipping it.
 
-**It cannot fix a renderer that fights it.** On React Native the scroll view has its own opinions, notably `maintainVisibleContentPosition`, and a binding that sets a scroll offset while the platform is also adjusting one will still glitch. The engine being correct is necessary, not sufficient.
+**No columns, no masonry, no sticky headers.** Single column vertical lists only.
 
-**Heights must be non negative and finite.** Anything else throws rather than corrupting the tree.
+**It cannot make an estimate correct.** The position of a row nobody has rendered is unknown. What is guaranteed is that unknown positions stay consistent and ordered, not that they are right.
 
 ## License
 

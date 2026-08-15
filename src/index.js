@@ -1,3 +1,5 @@
-export { ListLayout } from './layout.js'
+export { VirtualList } from './VirtualList.js'
+export { useVirtualList } from './useVirtualList.js'
 export { ListController } from './controller.js'
+export { ListLayout } from './layout.js'
 export { SumTree } from './sum-tree.js'
