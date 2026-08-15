@@ -1,0 +1,33 @@
+{
+  "name": "virtual-list-layout",
+  "version": "0.1.0",
+  "description": "Positioning engine for virtualized lists with millions of items and heights that are not known until they render",
+  "keywords": [
+    "virtual-list",
+    "virtualization",
+    "windowing",
+    "fenwick-tree",
+    "scroll-anchoring",
+    "infinite-scroll",
+    "chat",
+    "layout"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": ["src", "README.md", "LICENSE"],
+  "sideEffects": false,
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "test": "node --test tests/*.test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/theRizwan/virtual-list-layout.git"
+  },
+  "bugs": { "url": "https://github.com/theRizwan/virtual-list-layout/issues" },
+  "homepage": "https://github.com/theRizwan/virtual-list-layout#readme"
+}
