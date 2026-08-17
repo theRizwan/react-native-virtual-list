@@ -1,5 +1,12 @@
-import React, { forwardRef, useCallback, useImperativeHandle, useRef, useState } from 'react'
-import { ScrollView, View } from 'react-native'
+import React, {
+  forwardRef,
+  useCallback,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react'
+import { Platform, ScrollView, View } from 'react-native'
 
 import { useVirtualList } from './useVirtualList.js'
 
@@ -38,13 +45,44 @@ export const VirtualList = forwardRef(function VirtualList(
   const scrollRef = useRef(null)
   const [viewportHeight, setViewportHeight] = useState(0)
 
-  const { controller, frame, onScroll, measure, prepend, scrollToIndex, scrollToEnd } =
-    useVirtualList({
-      count: data.length,
-      estimate: estimatedItemHeight,
-      overscan,
-      viewportHeight,
-    })
+  const {
+    controller,
+    frame,
+    onScroll,
+    measure,
+    prepend: prependItems,
+    scrollToIndex,
+    scrollToEnd,
+  } = useVirtualList({
+    count: data.length,
+    estimate: estimatedItemHeight,
+    overscan,
+    viewportHeight,
+  })
+
+  // React Native's ScrollView holds visible position across insertions itself,
+  // by measuring real frames before and after the mount commit. react-native-web
+  // does not implement maintainVisibleContentPosition at all, so on web the
+  // correction has to be applied by hand, and only there. Doing it on both would
+  // compensate twice and move the list the other way.
+  const correctAfterPrepend = Platform.OS === 'web' && maintainVisiblePosition
+  const needsCorrection = useRef(false)
+
+  const prepend = useCallback(
+    (n, estimateFor) => {
+      prependItems(n, estimateFor)
+      if (correctAfterPrepend) needsCorrection.current = true
+    },
+    [prependItems, correctAfterPrepend]
+  )
+
+  // Runs after the new rows are laid out. Scrolling before that would be clamped
+  // to the old, shorter content height.
+  useLayoutEffect(() => {
+    if (!needsCorrection.current) return
+    needsCorrection.current = false
+    scrollRef.current?.scrollTo({ y: controller.scrollOffset, animated: false })
+  })
 
   useImperativeHandle(
     ref,

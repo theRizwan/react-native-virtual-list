@@ -80,13 +80,17 @@ layout.offsetForAnchor(anchor)    // the anchored item has not moved
 
 ## What is tested
 
-56 automated tests, plus a manual pass on a physical iOS device.
+56 automated tests, a manual pass on a physical iOS device, and a browser pass on react-native-web.
 
 **43 unit tests** covering the layout and the controller, including differential fuzzing of the tree against a naive O(n) implementation, the anchor holding its screen position across 40 random measurement trials and 30 prepend trials, and a run at a million items checking that offsets stay ordered, `indexAt` inverts `offsetOf`, and the total does not drift from the sum of the heights.
 
 **13 render tests** driving the real component through `react-test-renderer` with the layout events a host would send: that only the visible rows mount, that a hundred thousand rows still mount fewer than fifteen, that measurement corrects positions, that `scrollToIndex` lands on the right row when nothing has been measured, and that prepending does not move the anchored row.
 
-**A manual pass on a physical iOS device**, covering scrolling, prepending and `scrollToIndex`. That is what the automated tests cannot reach: real scroll momentum and native layout commit ordering. Android and web have not had the same treatment.
+**A manual pass on a physical iOS device**, covering scrolling, prepending and `scrollToIndex`. That is what the automated tests cannot reach: real scroll momentum and native layout commit ordering.
+
+**A browser pass on react-native-web**, which is the case the library exists for. A real app under Vite with `react-native` aliased to `react-native-web`, 1000 rows of varying height with the estimate deliberately wrong, scrolled into the middle and then prepended 200 rows at a time, four times over, to 2000 rows. A probe reads the real `getBoundingClientRect().top` of a tracked row before and after each prepend, independently of anything the library reports about itself. Every round the scroll position was adjusted by exactly the amount the content grew, and the tracked row held its screen position to the pixel.
+
+That pass is the reason this is 0.1.1 rather than 0.1.0. In 0.1.0 web prepending was broken: the layout maths was right, and the component never wrote the corrected offset back to the scroll view, so the list jumped by the full height of the inserted content. On native the platform hides that, because `maintainVisibleContentPosition` does the correction itself. On web nothing does. The fix applies the correction on web only, since doing it on both would compensate twice.
 
 ## Cost
 
@@ -104,9 +108,7 @@ layout.offsetForAnchor(anchor)    // the anchored item has not moved
 
 **No recycling.** Rows mount and unmount rather than being reused with new props. FlashList's recycling pools are faster for long fast scrolls through uniform rows. This trades that for simpler behaviour and no stale state in reused rows.
 
-**Only iOS has been run on real hardware.** Scrolling, prepending and `scrollToIndex` behave on a physical iOS device. Android and react-native-web have not been run at all yet.
-
-That second gap is worth calling out rather than burying, because react-native-web is the main reason to reach for this. The web case is argued from the platform not implementing `maintainVisibleContentPosition`, which is verifiable by reading react-native-web, and from tests that run in Node. It has not been confirmed in a browser. If you are here for the web case, treat it as unproven and tell me what you find.
+**Android has not been run.** iOS is covered on real hardware and web is covered in a browser, but nothing here has been exercised on Android. It should behave like iOS, because both go through the platform's own `maintainVisibleContentPosition`, but that is reasoning rather than evidence.
 
 **No columns, no masonry, no sticky headers.** Single column vertical lists only.
 
