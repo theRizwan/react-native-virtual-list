@@ -1,6 +1,14 @@
 # react-native-virtual-list
 
 A virtualized list for React Native and react-native-web that keeps its scroll position when item heights are only known after they render.
+[![npm](https://img.shields.io/npm/v/react-native-virtual-list?label=npm)](https://www.npmjs.com/package/react-native-virtual-list)
+[![downloads](https://img.shields.io/npm/dm/react-native-virtual-list?label=downloads)](https://www.npmjs.com/package/react-native-virtual-list)
+[![tests](https://img.shields.io/github/actions/workflow/status/theRizwan/react-native-virtual-list/ci.yml?label=tests)](https://github.com/theRizwan/react-native-virtual-list/actions/workflows/ci.yml)
+[![last release](https://img.shields.io/github/release-date/theRizwan/react-native-virtual-list?label=last%20release)](https://github.com/theRizwan/react-native-virtual-list/releases)
+[![license](https://img.shields.io/npm/l/react-native-virtual-list?label=license)](./LICENSE)
+
+Docs: **<https://therizwan.github.io/react-native-virtual-list/>**
+
 
 ```sh
 npm install react-native-virtual-list

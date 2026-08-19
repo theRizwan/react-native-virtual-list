@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>react-native-virtual-list — no scroll jump on prepend</title>
+<meta name="description" content="Virtualized list for React Native and react-native-web that holds scroll position when you prepend older items, where the platform gives you nothing.">
+<link rel="canonical" href="https://therizwan.github.io/react-native-virtual-list/">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="react-native-virtual-list">
+<meta property="og:title" content="react-native-virtual-list — keep scroll position when items resize after render">
+<meta property="og:description" content="Your chat list jumps when you load older messages on react-native-web. This holds the position, because react-native-web does not implement maintainVisibleContentPosition at all.">
+<meta property="og:url" content="https://therizwan.github.io/react-native-virtual-list/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="react-native-virtual-list">
+<meta name="twitter:description" content="A virtualized list for React Native and react-native-web that holds scroll position when item heights are only known after they render.">
+
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230b1220'/%3E%3Crect x='7' y='7' width='18' height='4' rx='1.5' fill='%2360a5fa'/%3E%3Crect x='7' y='14' width='18' height='4' rx='1.5' fill='%2338bdf8'/%3E%3Crect x='7' y='21' width='11' height='4' rx='1.5' fill='%23334155'/%3E%3C/svg%3E">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareSourceCode",
+  "name": "react-native-virtual-list",
+  "description": "A virtualized list for React Native and react-native-web that keeps its scroll position when item heights are only known after they render.",
+  "codeRepository": "https://github.com/theRizwan/react-native-virtual-list",
+  "programmingLanguage": "JavaScript",
+  "runtimePlatform": "React Native, react-native-web",
+  "license": "https://opensource.org/licenses/MIT",
+  "author": { "@type": "Person", "name": "Muhammad Rizwan Saleem" },
+  "keywords": "react native, react-native-web, virtualized list, FlatList, FlashList, scroll anchoring, chat list, infinite scroll"
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Why does my React Native chat list jump when I load older messages?",
+      "acceptedAnswer": { "@type": "Answer", "text": "On React Native the ScrollView prop maintainVisibleContentPosition prevents it, and FlashList enables it by default. On react-native-web that prop does not exist, so nothing corrects the scroll offset when content is inserted above the viewport and the list jumps by the height of the inserted content." }
+    },
+    {
+      "@type": "Question",
+      "name": "Does react-native-web support maintainVisibleContentPosition?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No. As of react-native-web 0.21.2 the string maintainVisibleContentPosition does not appear anywhere in the package. On web a list has to hold its own scroll position." }
+    },
+    {
+      "@type": "Question",
+      "name": "Should I use this instead of FlashList?",
+      "acceptedAnswer": { "@type": "Answer", "text": "If you are React Native only and FlashList works for you, use FlashList. It has a team at Shopify behind it and recycling pools this does not have. The case for react-native-virtual-list is react-native-web, where the platform gives you nothing." }
+    }
+  ]
+}
+</script>
+
+<style>
+  :root{
+    --bg:#ffffff; --fg:#111827; --muted:#4b5563; --line:#e5e7eb;
+    --accent:#1d4ed8; --code-bg:#f6f7f9; --ok:#047857; --warn:#92400e;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme=light]){
+      --bg:#0b1220; --fg:#e5e7eb; --muted:#9aa4b2; --line:#1f2937;
+      --accent:#7aa2ff; --code-bg:#111827; --ok:#34d399; --warn:#fbbf24;
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:52rem;margin:0 auto;padding:2.5rem 1.25rem 4rem}
+  a{color:var(--accent)}
+  h1{font-size:clamp(1.7rem,4.5vw,2.4rem);line-height:1.2;margin:0 0 .5rem}
+  h2{font-size:1.3rem;margin:2.5rem 0 .75rem;padding-top:1.25rem;border-top:1px solid var(--line)}
+  h3{font-size:1.05rem;margin:1.5rem 0 .4rem}
+  .lede{font-size:1.12rem;color:var(--muted);margin:0 0 1.25rem}
+  .badges{display:flex;flex-wrap:wrap;gap:.4rem;margin:1rem 0 1.5rem}
+  .badges img{height:20px}
+  pre{background:var(--code-bg);border:1px solid var(--line);border-radius:8px;
+    padding:.9rem 1rem;overflow-x:auto;font-family:var(--mono);font-size:.87rem;margin:.75rem 0}
+  code{font-family:var(--mono);font-size:.9em;background:var(--code-bg);padding:.12em .35em;border-radius:4px}
+  pre code{background:none;padding:0}
+  table{width:100%;border-collapse:collapse;margin:1rem 0;font-size:.93rem;display:block;overflow-x:auto}
+  th,td{text-align:left;padding:.5rem .6rem;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-weight:600}
+  .note{border-left:3px solid var(--accent);padding:.6rem 0 .6rem .9rem;margin:1.25rem 0;color:var(--muted)}
+  .ok{color:var(--ok);font-weight:600}
+  .warn{color:var(--warn);font-weight:600}
+  footer{margin-top:3rem;padding-top:1.25rem;border-top:1px solid var(--line);color:var(--muted);font-size:.9rem}
+  ul{padding-left:1.15rem}
+  li{margin:.3rem 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>react-native-virtual-list</h1>
+  <p class="lede">A virtualized list for React Native and react-native-web that keeps its scroll
+  position when item heights are only known after they render.</p>
+
+  <p class="badges">
+    <a href="https://www.npmjs.com/package/react-native-virtual-list"><img src="https://img.shields.io/npm/v/react-native-virtual-list?label=npm" alt="latest version on npm"></a>
+    <a href="https://www.npmjs.com/package/react-native-virtual-list"><img src="https://img.shields.io/npm/dm/react-native-virtual-list?label=downloads" alt="downloads per month"></a>
+    <a href="https://github.com/theRizwan/react-native-virtual-list/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/theRizwan/react-native-virtual-list/ci.yml?label=tests" alt="CI status"></a>
+    <a href="https://github.com/theRizwan/react-native-virtual-list/releases"><img src="https://img.shields.io/github/release-date/theRizwan/react-native-virtual-list?label=last%20release" alt="date of last release"></a>
+    <a href="https://github.com/theRizwan/react-native-virtual-list/commits/main"><img src="https://img.shields.io/github/last-commit/theRizwan/react-native-virtual-list?label=last%20commit" alt="date of last commit"></a>
+    <a href="https://github.com/theRizwan/react-native-virtual-list/blob/main/LICENSE"><img src="https://img.shields.io/npm/l/react-native-virtual-list?label=license" alt="MIT licence"></a>
+  </p>
+
+<pre><code>npm install react-native-virtual-list</code></pre>
+</header>
+
+<main>
+
+<h2 id="the-problem">Why your list jumps when you load older messages</h2>
+
+<p>You open a chat in the middle, the user scrolls up, you fetch the previous page and
+prepend it. The content above the viewport grows, and the whole list lurches down by the
+height of everything you just inserted. The user loses their place.</p>
+
+<p>On React Native the platform solves this for you. <code>ScrollView</code> has a
+<code>maintainVisibleContentPosition</code> prop that records the frame of the first visible
+child before a mount commit and shifts <code>contentOffset</code> by the difference
+afterwards. It never consults your estimates, so a bad estimate cannot break it.
+<a href="https://github.com/Shopify/flash-list">FlashList</a> turns it on by default.</p>
+
+<div class="note">
+<strong>react-native-web does not implement that prop.</strong> Not partially, not with
+caveats. The string <code>maintainVisibleContentPosition</code> does not appear anywhere in
+react-native-web 0.21.2. On web, every list has to hold its own position, and most do not.
+</div>
+
+<p>That is the gap this library exists for. It tracks an item and how far its top sits above
+the viewport, rather than a scroll offset, so measurement and insertion cannot move what you
+are looking at.</p>
+
+<h2 id="use">Use it</h2>
+
+<pre><code>import { VirtualList } from 'react-native-virtual-list'
+
+&lt;VirtualList
+  data={messages}
+  estimatedItemHeight={72}
+  keyExtractor={(item) =&gt; item.id}
+  renderItem={({ item }) =&gt; &lt;Message {...item} /&gt;}
+  onStartReached={loadOlder}
+/&gt;</code></pre>
+
+<p>When older messages arrive, tell the list how many went on the front. It is explicit
+rather than inferred from <code>data</code> growing, because only you know which end changed,
+and guessing wrong is what makes a list jump.</p>
+
+<pre><code>ref.current.prepend(50)
+
+ref.current.scrollToIndex(4823, { align: 'center', animated: true })
+ref.current.scrollToEnd()</code></pre>
+
+<h2 id="ordering">Item positions cannot go out of order</h2>
+
+<p>Offsets here are prefix sums over a Fenwick tree, not an array of positions that gets
+partially rebuilt. Heights are never negative, so the sequence of offsets is non decreasing
+<em>by construction</em>. There is no table that can fall out of sort order, so the search
+that decides which rows are visible cannot be misled.</p>
+
+<p>That is not a hypothetical benefit. In
+<a href="https://github.com/Shopify/flash-list/issues/2307">Shopify/flash-list#2307</a>,
+unmeasured items are positioned from a rolling average seeded at 200px. When the rows above
+finally measure taller, their positions grow but the rows below keep the stale average, the
+position table steps backwards, and the binary search over it returns an unrelated row. Ask
+for item 250, render item 333. This repository contains a test that reproduces that mechanism
+and then shows it cannot occur here.</p>
+
+<h2 id="tested">What is actually tested</h2>
+
+<table>
+<thead><tr><th>Property</th><th>How it is checked</th></tr></thead>
+<tbody>
+<tr><td>Prefix sums and searches are correct</td><td>Differential fuzzing against a naive O(n) implementation over 2000 random updates</td></tr>
+<tr><td>Offsets never step backwards</td><td>Measured in adversarial arrival orders</td></tr>
+<tr><td><code>indexAt</code> inverts <code>offsetOf</code></td><td>Every index across a list of one million</td></tr>
+<tr><td>The anchored row never moves</td><td>40 random trials, measuring above, below and on the anchor</td></tr>
+<tr><td>Prepending never moves the anchor</td><td>30 random trials, including buffer reallocation</td></tr>
+<tr><td>Totals do not drift</td><td>Sum of a million Float32 heights equals the tree total exactly</td></tr>
+<tr><td>Only visible rows mount</td><td>13 render tests through <code>react-test-renderer</code>; 100,000 rows mount fewer than 15</td></tr>
+</tbody>
+</table>
+
+<p><span class="ok">56 automated tests</span>, no device needed. Plus a manual pass on a
+physical iOS device, and a browser pass on react-native-web where a probe read the real
+<code>getBoundingClientRect().top</code> of a tracked row across four consecutive prepends to
+2000 rows. Every round the scroll position moved by exactly the amount the content grew.</p>
+
+<h2 id="cost">Cost at scale</h2>
+
+<table>
+<thead><tr><th></th><th>1M items</th><th>5M items</th></tr></thead>
+<tbody>
+<tr><td>Build</td><td>11 ms</td><td>52 ms</td></tr>
+<tr><td><code>visibleRange</code></td><td>0.84 &micro;s</td><td>1.15 &micro;s</td></tr>
+<tr><td><code>setHeight</code></td><td>0.33 &micro;s</td><td>0.29 &micro;s</td></tr>
+<tr><td>Prepend 50</td><td>0.09 ms</td><td>0.02 ms</td></tr>
+<tr><td>Index memory</td><td>12 MB</td><td>58 MB</td></tr>
+</tbody>
+</table>
+
+<p>A frame at 60fps is 16.7 ms. Deciding what is visible at five million items uses about
+0.007 percent of it. The index costs 13 bytes per row, which at a million rows is less than
+the data you are listing.</p>
+
+<h2 id="honest">Where you should not use this</h2>
+
+<p><strong>If you are React Native only and FlashList works, use FlashList.</strong> It has a
+team behind it, per type recycling pools, and far more users. This does not try to beat it and
+will not.</p>
+
+<ul>
+<li><span class="warn">No recycling.</span> Rows mount and unmount rather than being reused. FlashList is faster on long fast scrolls through uniform rows.</li>
+<li><span class="warn">Android is untested.</span> iOS is covered on real hardware and web in a browser. Android should behave like iOS because both go through the platform's own prop, but that is reasoning rather than evidence.</li>
+<li><span class="warn">Single column vertical only.</span> No masonry, no sticky headers, no columns.</li>
+<li>It cannot make an estimate correct. The position of a row nobody has rendered is unknown. What is guaranteed is that unknown positions stay ordered and consistent, not that they are right.</li>
+</ul>
+
+<h2 id="maintenance">Release history</h2>
+
+<table>
+<thead><tr><th>Version</th><th>Date</th><th>What changed</th></tr></thead>
+<tbody>
+<tr>
+  <td><a href="https://github.com/theRizwan/react-native-virtual-list/releases/tag/v0.1.1"><strong>0.1.1</strong></a></td>
+  <td>17 Aug 2026</td>
+  <td>Fixed web prepending, which was broken in 0.1.0. The layout maths was right but the corrected offset was never written back to the scroll view, so web jumped by the full inserted height. Also ships compiled output so bundlers that only treat <code>.jsx</code> as JSX can build it.</td>
+</tr>
+<tr>
+  <td><a href="https://github.com/theRizwan/react-native-virtual-list/releases/tag/v0.1.0">0.1.0</a></td>
+  <td>15 Aug 2026</td>
+  <td>First release.</td>
+</tr>
+</tbody>
+</table>
+
+<p>Issues and pull requests are welcome, particularly a case where the position still moves.
+A reproduction naming the platform and the sequence of calls is enough.</p>
+
+</main>
+
+<footer>
+  <p>MIT licensed.
+  <a href="https://github.com/theRizwan/react-native-virtual-list">Source on GitHub</a> &middot;
+  <a href="https://www.npmjs.com/package/react-native-virtual-list">Package on npm</a> &middot;
+  <a href="https://github.com/theRizwan/react-native-virtual-list/issues">Report an issue</a></p>
+  <p>Built by <a href="https://github.com/theRizwan">Muhammad Rizwan Saleem</a>.</p>
+</footer>
+
+</div>
+</body>
+</html>

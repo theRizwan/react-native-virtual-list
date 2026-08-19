@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://therizwan.github.io/react-native-virtual-list/sitemap.xml
